@@ -136,7 +136,7 @@ class Level1 {
                     tokens.push_back({.type=TokenT::DBL_QUOTE, .value=std::string_view("\"",1), .pos=i});
                     i++;
                     if (iter==iter_end) {
-                        return Error{.reason=ErrorReason::MISSING_CLOSE_PAR, .pos=i};
+                        return Error{.reason=ErrorReason::MISSING_DBL_QUOTE, .pos=i};
                     }
                     else {
                         const auto _begin = iter;
