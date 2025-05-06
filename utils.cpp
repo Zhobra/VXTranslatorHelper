@@ -1,9 +1,9 @@
-#include <cctype>
+#include <locale>
 #include <cstddef>
 #include <optional>
 #include <string>
-#include <vector>
 #include <string_view>
+#include <vector>
 #include "utfcpp/source/utf8/unchecked.h"
 
 // ( - bracket/parenthesis
@@ -88,6 +88,7 @@ class Level1 {
         if (input.length() == 0) {
             return {};
         }
+        static const std::locale loc(".UTF8");
 
         size_t i{1};
         auto iter = input.begin();
@@ -202,12 +203,13 @@ class Level1 {
                 case U'\\':
                     return Error{.reason=ErrorReason::UNEXPECTED_SYMBOL, .pos=i};
                 default:
-                    if (std::isalpha(symbol)) {
+                    if (std::isalpha(symbol,loc)) {
                         const auto begin_pos{i};
                         auto cop = iter;
                         while (iter!=iter_end) { // VERY QUESITONABLE
                             i++;
-                            if (std::isalnum(symbol=utf8::unchecked::next(iter))) {
+                            symbol=utf8::unchecked::next(iter);
+                            if (std::isalnum(symbol, loc)) {
                                 cop = iter;
                             }
                             else {
@@ -217,7 +219,7 @@ class Level1 {
                         }
                         tokens.push_back({.type=TokenT::IDENTIFIER, .value=std::string_view(begin,iter), .pos=begin_pos});
                     }
-                    else if (std::ispunct((unsigned char)symbol)) { // ALSO KINDA WEIRD
+                    else if (std::ispunct(symbol, loc)) { // ALSO KINDA WEIRD
                         tokens.push_back({.type=TokenT::IDENTIFIER, .value=std::string_view(begin,iter), .pos=i});
                         i++;
                     }
