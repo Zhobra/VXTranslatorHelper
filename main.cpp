@@ -164,9 +164,9 @@ int main(int argc, char* argv[]) {
         if (argc==1) {
             name = argv[0];
         }
-        fmt::println("Usage:\n\t{} FILE_OR_DIRECTORY_TO_CHECK", name);
+        fmt::println("Usage:\n\t{} INPUT_FILE_OR_DIR [INPUT_FILE_OR_DIR2 [...]]", name);
         fmt::println("Expect the output in files \"{}\" and \"{}\"\n", out_err, out_inner_err);
-        return 1;
+        return 0;
     }
     
     std::ofstream error_output;
