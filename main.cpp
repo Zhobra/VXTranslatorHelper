@@ -95,7 +95,13 @@ void process_file(std::istream& input, std::ostream& error_output, std::ostream&
 
     if (errs.size() > 0) {
         fmt::println(error_output, "---------------------------------------");
-        fmt::println(error_output, "File \"{}\"", narrow(file_path.wstring()));
+        fmt::println(error_output, "File \"{}\"",
+#ifdef _WIN32
+                        narrow(file_path.native())
+#else
+                        file_path.string()
+#endif
+            );
         for (const auto& err : errs) {
             fmt::println(error_output, "Error at line {}, symbol #{}, reason \"{}\"", err.line, err.err.pos, error_verbose(err.err.reason));
         }
@@ -103,7 +109,13 @@ void process_file(std::istream& input, std::ostream& error_output, std::ostream&
     if (inner_errs.size() > 0) {
         fmt::println(inner_error_output, "  ----------");
         
-        fmt::println(inner_error_output, "File \"{}\"", narrow(file_path.wstring()));
+        fmt::println(inner_error_output, "File \"{}\"",
+#ifdef _WIN32
+            narrow(file_path.native())
+#else
+            file_path.string()
+#endif
+        );
         for (const auto& err : inner_errs) {
             fmt::println(inner_error_output, "Inner error at line {}, symbol #{}, reason \"{}\"", err.line_idx, err.pos, error_verbose(err.reason));
         }
@@ -112,11 +124,11 @@ void process_file(std::istream& input, std::ostream& error_output, std::ostream&
 
 bool compare_extension(const std::filesystem::path& file_path) {
 #ifdef _WIN32
-    //return file_path.extension().wstring() == L".txt";
+    return file_path.extension().native() == L".txt";
 #else
-    //return file_path.extension().string() == ".txt";
+    return file_path.extension().string() == ".txt";
 #endif
-    return file_path.extension().u8string() == u8".txt";
+    //return file_path.extension().u8string() == u8".txt";
 }
 
 int main(int argc, char* argv[]) {
@@ -125,8 +137,7 @@ int main(int argc, char* argv[]) {
     
 #ifdef _WIN32
     const auto deleter = [](wchar_t **ptr) { LocalFree(ptr); };
-    using wstr_arr_unique_ptr = std::unique_ptr<wchar_t *[], decltype(deleter)>;
-    auto wargv = wstr_arr_unique_ptr(CommandLineToArgvW(GetCommandLineW(), &argc), deleter);
+    auto wargv = std::unique_ptr<wchar_t *[], decltype(deleter)>(CommandLineToArgvW(GetCommandLineW(), &argc), deleter);
     std::vector<std::string> _converted;
     std::vector<char*> wargv2argv;
     
@@ -200,7 +211,13 @@ int main(int argc, char* argv[]) {
                 }
                 std::ifstream input(dirEntry.path(),std::ios::binary);
                 if (!input.is_open()) {
-                    fmt::println("Cannot open \"{}\".", narrow(in.wstring()));
+                    fmt::println("Cannot open \"{}\".", 
+#ifdef _WIN32
+                        narrow(dirEntry.path().native())
+#else
+                        dirEntry.path().string()
+#endif
+                    );
                     continue;
                 }
                 process_file(input, error_output, inner_error_output, dirEntry.path());
@@ -218,7 +235,13 @@ int main(int argc, char* argv[]) {
             }
             std::ifstream input(in,std::ios::binary);
             if (!input.is_open()) {
-                fmt::println("Cannot open \"{}\".", narrow(in.wstring()));
+                fmt::println("Cannot open \"{}\".",
+#ifdef _WIN32
+                        narrow(in.native())
+#else
+                        in.string()
+#endif
+                );
                 return 5;
             }
 

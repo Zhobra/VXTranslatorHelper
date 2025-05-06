@@ -1,4 +1,3 @@
-#include <locale>
 #include <cstddef>
 #include <optional>
 #include <string>
@@ -23,6 +22,7 @@ enum class TokenT {
     DBL_QUOTE,
     SINGLE_QUOTE,
     COMMA_SEP,
+    MEMBER_ACCESS,
     UNKNOWN
 };
 
@@ -77,6 +77,35 @@ class Level1 {
         const size_t pos;
     };
     std::vector<Parenth> parity_check_helper;
+
+    void get_iden(char32_t symbol, const auto begin, auto& iter, const auto& iter_end, size_t& index, std::vector<Token>& tokens) {
+        const auto begin_pos{index};
+        auto cop = iter;
+
+        while (iter!=iter_end) { // VERY QUESTIONABLE
+            index++;
+            symbol=utf8::unchecked::next(iter);
+            switch (symbol) {
+                case U' ':
+                case U'\t':
+                case U'(':
+                case U')':
+                case U'[':
+                case U']':
+                case U'"':
+                case U',':
+                case U'.':
+                case U'\\':
+                    iter = cop;
+                    tokens.push_back({.type=TokenT::IDENTIFIER, .value=std::string_view(begin,iter), .pos=begin_pos});
+                    return;
+                default:
+                    cop = iter;
+                    break;
+            }
+        }
+    }
+
     public:
     struct Error {
         ErrorReason reason;
@@ -88,7 +117,8 @@ class Level1 {
         if (input.length() == 0) {
             return {};
         }
-        static const std::locale loc(".UTF8");
+        bool has_decimal_sep = false;
+        bool has_exponent = false;
 
         size_t i{1};
         auto iter = input.begin();
@@ -173,6 +203,23 @@ class Level1 {
                     tokens.push_back({.type=TokenT::COMMA_SEP, .value=std::string_view(",",1), .pos=i});
                     i++;
                     break;
+                case U'.':
+                    if (iter==iter_end) {
+                        tokens.push_back({.type=TokenT::MEMBER_ACCESS, .value=std::string_view(".",1), .pos=i});
+                        i++;
+                        break;
+                    }
+                    else {
+                        //auto copy = iter;
+                        if (U'0' <= (symbol=utf8::unchecked::peek_next(iter)) && symbol <= U'9') {
+                            has_decimal_sep = true;
+                        }
+                        else {
+                            tokens.push_back({.type=TokenT::MEMBER_ACCESS, .value=std::string_view(".",1), .pos=i});
+                            i++;
+                            break;
+                        }
+                    }
                 case U'0':
                 case U'1':
                 case U'2':
@@ -191,6 +238,17 @@ class Level1 {
                             if (U'0' <= (symbol=utf8::unchecked::next(iter)) && symbol <= U'9') {
                                 cop = iter;
                             }
+                            else if (symbol == U'.') {
+                                if (has_decimal_sep || has_exponent) {
+                                    return Error{ .reason=ErrorReason::UNEXPECTED_SYMBOL, .pos=i };
+                                }
+                                else {
+                                    has_decimal_sep = true;
+                                }
+                            }
+                            else if ((symbol == U'e' || symbol == U'E') && !has_exponent) {
+                                has_exponent = true;
+                            }
                             else {
                                 iter = cop;
                                 break;
@@ -203,30 +261,31 @@ class Level1 {
                 case U'\\':
                     return Error{.reason=ErrorReason::UNEXPECTED_SYMBOL, .pos=i};
                 default:
-                    if (std::isalpha(symbol,loc)) {
-                        const auto begin_pos{i};
-                        auto cop = iter;
-                        while (iter!=iter_end) { // VERY QUESITONABLE
-                            i++;
-                            symbol=utf8::unchecked::next(iter);
-                            if (std::isalnum(symbol, loc)) {
-                                cop = iter;
-                            }
-                            else {
-                                iter = cop;
-                                break;
-                            }
-                        }
-                        tokens.push_back({.type=TokenT::IDENTIFIER, .value=std::string_view(begin,iter), .pos=begin_pos});
-                    }
-                    else if (std::ispunct(symbol, loc)) { // ALSO KINDA WEIRD
-                        tokens.push_back({.type=TokenT::IDENTIFIER, .value=std::string_view(begin,iter), .pos=i});
-                        i++;
-                    }
-                    else {
-                        tokens.push_back({.type=TokenT::UNKNOWN, .value=std::string_view(begin,iter), .pos=i});
-                        i++;
-                    }
+                    get_iden(symbol, begin, iter, iter_end, i, tokens);
+                    // if (std::isalpha(symbol,loc)) {
+                    //     const auto begin_pos{i};
+                    //     auto cop = iter;
+                    //     while (iter!=iter_end) { // VERY QUESTIONABLE
+                    //         i++;
+                    //         symbol=utf8::unchecked::next(iter);
+                    //         if (std::isalnum(symbol, loc)) {
+                    //             cop = iter;
+                    //         }
+                    //         else {
+                    //             iter = cop;
+                    //             break;
+                    //         }
+                    //     }
+                    //     tokens.push_back({.type=TokenT::IDENTIFIER, .value=std::string_view(begin,iter), .pos=begin_pos});
+                    // }
+                    // else if (std::ispunct(symbol, loc)) { // ALSO KINDA WEIRD
+                    //     tokens.push_back({.type=TokenT::IDENTIFIER, .value=std::string_view(begin,iter), .pos=i});
+                    //     i++;
+                    // }
+                    // else {
+                    //     tokens.push_back({.type=TokenT::UNKNOWN, .value=std::string_view(begin,iter), .pos=i});
+                    //     i++;
+                    // }
             }
         }
 
