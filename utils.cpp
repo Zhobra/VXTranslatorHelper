@@ -220,6 +220,7 @@ class Level1 {
                             break;
                         }
                     }
+                    [[fallthrough]];
                 case U'0':
                 case U'1':
                 case U'2':
